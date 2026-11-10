@@ -1,0 +1,371 @@
+@if (auth.loading()) {
+  <div class="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">
+    Loading your workspace…
+  </div>
+} @else if (!auth.isAuthenticated()) {
+  <router-outlet />
+} @else {
+  @if (auth.user(); as user) {
+    <a
+      href="#main-content"
+      class="sr-only fixed left-4 top-4 z-[60] rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white focus:not-sr-only"
+    >
+      Skip to content
+    </a>
+
+    <div class="flex min-h-screen bg-slate-50 text-slate-900">
+      <aside class="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
+        <div class="flex items-center gap-3 px-5 py-6">
+          <span
+            class="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500 text-white shadow-sm"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" class="h-5 w-5">
+              <path
+                d="M4 19V12m5 7V5m5 14v-9m5 9V8"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+              />
+            </svg>
+          </span>
+          <span>
+            <span class="block text-base font-semibold tracking-tight text-slate-900"
+              >RetailLens</span
+            >
+            <span
+              class="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400"
+              >Analytics workspace</span
+            >
+          </span>
+        </div>
+
+        <nav aria-label="Main" class="mt-2 space-y-4 overflow-y-auto px-3 pb-4">
+          @for (group of navGroups; track group.label) {
+            <div>
+              <p
+                class="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400"
+              >
+                {{ group.label }}
+              </p>
+              <ul class="space-y-0.5">
+                @for (item of group.items; track item.path) {
+                  <li>
+                    <a
+                      [routerLink]="item.path"
+                      routerLinkActive="border-sky-500 bg-sky-50 text-sky-900"
+                      [routerLinkActiveOptions]="{ exact: false }"
+                      ariaCurrentWhenActive="page"
+                      queryParamsHandling="preserve"
+                      class="group block rounded-lg border-l-2 border-transparent px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                    >
+                      <span class="flex items-center gap-3">
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.7"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="h-4 w-4 shrink-0 text-slate-400 group-hover:text-slate-600"
+                        >
+                          <path [attr.d]="item.icon" />
+                        </svg>
+                        {{ item.label }}
+                      </span>
+                    </a>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        </nav>
+
+        <div class="mt-6 px-5">
+          <label
+            for="organisation"
+            class="text-xs font-semibold uppercase tracking-wide text-slate-500"
+          >
+            Organisation
+          </label>
+          <select
+            id="organisation"
+            class="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+            (change)="switchOrganisation($event)"
+          >
+            @for (organisation of user.organisations; track organisation.id) {
+              <option
+                [value]="organisation.id"
+                [selected]="organisation.id === auth.activeOrganisation()?.id"
+              >
+                {{ organisation.name }}
+              </option>
+            }
+          </select>
+          @if (auth.activeOrganisation(); as active) {
+            <p class="mt-1 text-xs text-slate-500">Your role: {{ active.role }}</p>
+          }
+        </div>
+
+        <div class="mt-4 px-3">
+          <app-activity-tray />
+        </div>
+
+        <div class="mt-auto border-t border-slate-200 px-4 py-4">
+          <div class="flex items-center gap-3">
+            <span
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-800"
+            >
+              {{ user.display_name?.slice(0, 1) || user.email.slice(0, 1) }}
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm font-medium text-slate-900">{{
+                user.display_name || user.email
+              }}</span>
+              <span class="block truncate text-xs text-slate-500">{{ user.email }}</span>
+            </span>
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              (click)="signOut()"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <div class="min-w-0 flex-1">
+        <header
+          class="sticky top-0 z-30 hidden h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-8 backdrop-blur lg:flex"
+        >
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              RetailLens / Workspace
+            </p>
+            <p class="mt-0.5 text-sm font-semibold text-slate-800">
+              {{ auth.activeOrganisation()?.name ?? 'Analytics' }}
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-keyshortcuts="Control+K Meta+K"
+              class="flex w-64 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 transition-colors hover:border-sky-300 hover:bg-white"
+              (click)="openSearch()"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="h-4 w-4 shrink-0"
+              >
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="m20 20-3.5-3.5"></path>
+              </svg>
+              <span class="flex-1 text-left">Search your workspace</span>
+              <kbd
+                class="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-500"
+                >Ctrl K</kbd
+              >
+            </button>
+            <span class="h-8 w-px bg-slate-200"></span>
+            <span class="text-xs font-medium text-slate-500">{{
+              auth.activeOrganisation()?.role
+            }}</span>
+          </div>
+        </header>
+
+        <header
+          class="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:hidden"
+        >
+          <button
+            type="button"
+            class="rounded-lg border border-slate-300 p-2 text-slate-700"
+            aria-label="Open navigation"
+            aria-controls="mobile-navigation"
+            [attr.aria-expanded]="menuOpen()"
+            (click)="menuOpen.set(true)"
+          >
+            <span class="block h-0.5 w-5 bg-current"></span>
+            <span class="mt-1 block h-0.5 w-5 bg-current"></span>
+            <span class="mt-1 block h-0.5 w-5 bg-current"></span>
+          </button>
+          <span class="flex items-center gap-2 text-sm font-semibold"
+            ><span class="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500 text-white"
+              ><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" class="h-4 w-4">
+                <path
+                  d="M4 19V12m5 7V5m5 14v-9m5 9V8"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                /></svg></span
+            >RetailLens</span
+          >
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="rounded-lg border border-slate-300 p-2 text-slate-700"
+              aria-label="Search"
+              aria-haspopup="dialog"
+              aria-keyshortcuts="Control+K Meta+K"
+              (click)="openSearch()"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="h-4 w-4"
+              >
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="m20 20-3.5-3.5"></path>
+              </svg>
+            </button>
+            <button type="button" class="text-sm font-medium text-slate-600" (click)="signOut()">
+              Sign out
+            </button>
+          </div>
+        </header>
+
+        @if (menuOpen()) {
+          <div
+            class="fixed inset-0 z-40 lg:hidden"
+            role="presentation"
+            (click)="menuOpen.set(false)"
+          >
+            <div class="absolute inset-0 bg-slate-900/40"></div>
+            <aside
+              id="mobile-navigation"
+              class="relative flex h-full w-72 max-w-[85vw] flex-col bg-white shadow-xl"
+              (click)="$event.stopPropagation()"
+            >
+              <div class="flex items-center justify-between px-5 py-5">
+                <div>
+                  <p class="text-lg font-semibold tracking-tight">RetailLens</p>
+                  <p class="mt-1 text-xs text-slate-500">Retail intelligence</p>
+                </div>
+                <button
+                  type="button"
+                  class="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
+                  aria-label="Close navigation"
+                  (click)="menuOpen.set(false)"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div class="px-3 pb-2">
+                <button
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-keyshortcuts="Control+K Meta+K"
+                  class="flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600"
+                  (click)="openSearch()"
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="h-4 w-4 shrink-0 text-slate-400"
+                  >
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="m20 20-3.5-3.5"></path>
+                  </svg>
+                  <span class="flex-1 text-left">Search</span>
+                  <kbd
+                    class="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-500"
+                  >
+                    Ctrl K
+                  </kbd>
+                </button>
+              </div>
+
+              <nav aria-label="Mobile main" class="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
+                @for (group of navGroups; track group.label) {
+                  <div>
+                    <p
+                      class="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400"
+                    >
+                      {{ group.label }}
+                    </p>
+                    <ul class="space-y-0.5">
+                      @for (item of group.items; track item.path) {
+                        <li>
+                          <a
+                            [routerLink]="item.path"
+                            routerLinkActive="border-sky-500 bg-sky-50 text-sky-900"
+                            [routerLinkActiveOptions]="{ exact: false }"
+                            ariaCurrentWhenActive="page"
+                            queryParamsHandling="preserve"
+                            class="group block rounded-lg border-l-2 border-transparent px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                            (click)="menuOpen.set(false)"
+                          >
+                            {{ item.label }}
+                          </a>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                }
+              </nav>
+
+              <div class="mt-5 px-5">
+                <label
+                  for="mobile-organisation"
+                  class="text-xs font-semibold uppercase tracking-wide text-slate-500"
+                >
+                  Organisation
+                </label>
+                <select
+                  id="mobile-organisation"
+                  class="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                  (change)="switchOrganisation($event)"
+                >
+                  @for (organisation of user.organisations; track organisation.id) {
+                    <option
+                      [value]="organisation.id"
+                      [selected]="organisation.id === auth.activeOrganisation()?.id"
+                    >
+                      {{ organisation.name }}
+                    </option>
+                  }
+                </select>
+                @if (auth.activeOrganisation(); as active) {
+                  <p class="mt-1 text-xs text-slate-500">Your role: {{ active.role }}</p>
+                }
+              </div>
+
+              <div class="mt-4 px-3">
+                <app-activity-tray />
+              </div>
+
+              <div class="mt-auto border-t border-slate-200 px-5 py-4">
+                <p class="truncate text-sm font-medium text-slate-900">
+                  {{ user.display_name || user.email }}
+                </p>
+                <p class="truncate text-xs text-slate-500">{{ user.email }}</p>
+              </div>
+            </aside>
+          </div>
+        }
+
+        <main
+          id="main-content"
+          tabindex="-1"
+          class="mx-auto w-full max-w-[1600px] px-4 py-7 sm:px-6 lg:px-10 lg:py-9"
+        >
+          <router-outlet />
+        </main>
+      </div>
+    </div>
+
+    <app-command-palette [open]="searchOpen()" (closed)="searchOpen.set(false)" />
+  }
+}

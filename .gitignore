@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.cache/
+staticfiles/
+media/
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+frontend/.vscode/
+
+# Environment and local data
+.env
+*.sqlite3
+.DS_Store

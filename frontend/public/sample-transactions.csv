@@ -1,0 +1,7 @@
+InvoiceNo,InvoiceDate,StockCode,Description,Quantity,UnitPrice,CustomerID,Country,LineNo,Discount,IsReturn
+INV-1001,05/01/2024,SKU-100,Canvas tote,2,18.50,C-001,United Kingdom,1,0,false
+INV-1001,05/01/2024,SKU-101,Leather wallet,1,42.00,C-001,United Kingdom,2,4.20,false
+INV-1002,12/01/2024,SKU-102,Wool scarf,3,24.00,C-002,United Kingdom,1,0,false
+INV-1003,03/02/2024,SKU-100,Canvas tote,1,18.50,C-003,France,1,0,false
+INV-1003,03/02/2024,SKU-103,Travel mug,2,16.00,C-003,France,2,0,false
+INV-1004,18/02/2024,SKU-101,Leather wallet,-1,42.00,C-001,United Kingdom,1,0,true
