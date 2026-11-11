@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -16,13 +17,18 @@ from apps.organisations.services import (
     active_membership_for,
     require_role,
 )
+from config.schema import ORGANISATION_HEADER, limit_parameter
 
 from .models import Dataset
 from .serializers import (
+    CanonicalFieldListSerializer,
     DatasetDetailSerializer,
     DatasetMappingSerializer,
     DatasetSummarySerializer,
     DatasetUploadSerializer,
+    ProcessingRunSerializer,
+    QualityIssueSerializer,
+    QualitySummarySerializer,
     canonical_field_payload,
 )
 from .services import apply_mapping, create_dataset, delete_dataset
@@ -46,6 +52,16 @@ def _dataset(request, dataset_id) -> Dataset:  # type: ignore[no-untyped-def]
     )
 
 
+@extend_schema_view(
+    get=extend_schema(
+        parameters=[ORGANISATION_HEADER],
+        responses=DatasetSummarySerializer(many=True),
+    ),
+    post=extend_schema(
+        request=DatasetUploadSerializer,
+        responses={201: DatasetDetailSerializer},
+    ),
+)
 class DatasetListUploadView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
@@ -77,6 +93,10 @@ class DatasetListUploadView(APIView):
         return Response(DatasetDetailSerializer(dataset).data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema_view(
+    get=extend_schema(responses=DatasetDetailSerializer),
+    delete=extend_schema(responses={204: None}),
+)
 class DatasetDetailView(APIView):
     def get(self, request, dataset_id):  # type: ignore[no-untyped-def]
         return Response(DatasetDetailSerializer(_dataset(request, dataset_id)).data)
@@ -89,6 +109,7 @@ class DatasetDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(request=DatasetMappingSerializer, responses=DatasetDetailSerializer)
 class DatasetMappingView(APIView):
     def put(self, request, dataset_id):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -101,12 +122,14 @@ class DatasetMappingView(APIView):
         return Response(DatasetDetailSerializer(dataset).data)
 
 
+@extend_schema(parameters=[ORGANISATION_HEADER], responses=CanonicalFieldListSerializer)
 class CanonicalFieldListView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         _membership(request)
         return Response(canonical_field_payload())
 
 
+@extend_schema(request=None, responses={202: ProcessingRunSerializer})
 class DatasetProcessView(APIView):
     def post(self, request, dataset_id):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -118,12 +141,17 @@ class DatasetProcessView(APIView):
         return Response(run_payload(run), status=status.HTTP_202_ACCEPTED)
 
 
+@extend_schema(parameters=[ORGANISATION_HEADER], responses=ProcessingRunSerializer(many=True))
 class DatasetRunsView(APIView):
     def get(self, request, dataset_id):  # type: ignore[no-untyped-def]
         _membership(request)
         return Response(runs_payload(_dataset(request, dataset_id)))
 
 
+@extend_schema(
+    parameters=[ORGANISATION_HEADER, limit_parameter(50, 200, "issues")],
+    responses=QualityIssueSerializer(many=True),
+)
 class DatasetIssuesView(APIView):
     def get(self, request, dataset_id):  # type: ignore[no-untyped-def]
         _membership(request)
@@ -135,6 +163,7 @@ class DatasetIssuesView(APIView):
         return Response(issues_payload(dataset, limit=limit))
 
 
+@extend_schema(parameters=[ORGANISATION_HEADER], responses=QualitySummarySerializer)
 class QualitySummaryView(APIView):
     """One organisation-wide view of rejected rows and their reasons."""
 
@@ -187,3 +216,14 @@ class QualitySummaryView(APIView):
                 "datasets": by_dataset,
             }
         )
+
+
+@extend_schema(exclude=True)
+class DatasetCollectionAliasView(DatasetListUploadView):
+    """The bare collection path, kept only so an upload POST survives.
+
+    ``APPEND_SLASH`` cannot redirect a request body, so an upload has to be
+    accepted at ``/api/v1/datasets`` as well as at the trailing-slash route. The
+    alias is excluded from the schema so the collection has one documented
+    operation and the two paths do not collide on their operationId.
+    """

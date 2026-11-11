@@ -10,7 +10,7 @@ from django.contrib.auth import (
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny
@@ -18,6 +18,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .serializers import (
+    CsrfTokenSerializer,
     LoginSerializer,
     MeSerializer,
     PasswordChangeSerializer,
@@ -28,7 +29,7 @@ from .serializers import (
 from .services import set_default_organisation
 
 
-@extend_schema(responses={200: None}, auth=[])
+@extend_schema(responses=CsrfTokenSerializer, auth=[])
 @api_view(["GET"])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -37,6 +38,7 @@ def csrf_token(request):  # type: ignore[no-untyped-def]
     return Response({"csrfToken": get_token(request)})
 
 
+@extend_schema(request=RegisterSerializer, responses={201: MeSerializer})
 @method_decorator(csrf_protect, name="dispatch")
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -49,6 +51,7 @@ class RegisterView(APIView):
         return Response(MeSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(request=LoginSerializer, responses=MeSerializer)
 @method_decorator(csrf_protect, name="dispatch")
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -61,12 +64,17 @@ class LoginView(APIView):
         return Response(MeSerializer(user).data)
 
 
+@extend_schema(request=None, responses={204: None})
 class LogoutView(APIView):
     def post(self, request):  # type: ignore[no-untyped-def]
         django_logout(request)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema_view(
+    get=extend_schema(responses=MeSerializer),
+    patch=extend_schema(request=ProfileSerializer, responses=MeSerializer),
+)
 class MeView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         return Response(MeSerializer(request.user).data)
@@ -78,6 +86,7 @@ class MeView(APIView):
         return Response(MeSerializer(request.user).data)
 
 
+@extend_schema(request=PasswordChangeSerializer, responses={204: None})
 class PasswordChangeView(APIView):
     def post(self, request):  # type: ignore[no-untyped-def]
         serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
@@ -88,6 +97,7 @@ class PasswordChangeView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(request=PreferencesSerializer, responses=MeSerializer)
 class PreferencesView(APIView):
     def patch(self, request):  # type: ignore[no-untyped-def]
         serializer = PreferencesSerializer(

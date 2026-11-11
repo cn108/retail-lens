@@ -2,9 +2,9 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from apps.datasets.views import DatasetListUploadView
-from apps.organisations.views import OrganisationListCreateView
-from apps.reporting.views import SavedReportListCreateView
+from apps.datasets.views import DatasetCollectionAliasView
+from apps.organisations.views import OrganisationCollectionAliasView
+from apps.reporting.views import ReportCollectionAliasView
 from config.health import health
 
 api_v1_patterns = [
@@ -15,13 +15,13 @@ api_v1_patterns = [
     # a request body and would answer 500 instead of creating the organisation.
     path(
         "organisations",
-        OrganisationListCreateView.as_view(),
+        OrganisationCollectionAliasView.as_view(),
         name="organisation-list-root",
     ),
     path("organisations/", include("apps.organisations.urls")),
     # Same alias reason as the organisation collection: uploading is a POST,
     # and APPEND_SLASH cannot redirect a request body.
-    path("datasets", DatasetListUploadView.as_view(), name="dataset-list-root"),
+    path("datasets", DatasetCollectionAliasView.as_view(), name="dataset-list-root"),
     path("datasets/", include("apps.datasets.urls")),
     path("analytics/", include("apps.analytics.urls")),
     path("customers/", include("apps.customers.urls")),
@@ -29,7 +29,7 @@ api_v1_patterns = [
     # The collection is reachable with and without a trailing slash for the
     # same reason as datasets: creating a report is a POST and APPEND_SLASH
     # cannot redirect a request body.
-    path("reports", SavedReportListCreateView.as_view(), name="report-list-root"),
+    path("reports", ReportCollectionAliasView.as_view(), name="report-list-root"),
     path("reports/", include("apps.reporting.urls")),
     path("monitoring/", include("apps.monitoring.urls")),
 ]

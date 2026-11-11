@@ -1,12 +1,21 @@
 import uuid
 from datetime import date
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.organisations.models import Membership
 from apps.organisations.services import active_membership_for
+from config.schema import (
+    GRANULARITY,
+    PERIOD_PARAMETERS,
+    SCOPE_PARAMETERS,
+    SEARCH,
+    limit_parameter,
+)
 
 from .extended import (
     basket_analysis,
@@ -14,7 +23,26 @@ from .extended import (
     product_detail,
     returns_analysis,
 )
+from .serializers import (
+    BasketAnalysisSerializer,
+    GeographySummarySerializer,
+    ProductDetailSerializer,
+    ProductSummarySerializer,
+    ReturnsAnalysisSerializer,
+    SalesSummarySerializer,
+    SalesTrendSerializer,
+)
 from .services import product_performance, sales_summary, sales_trend
+
+MIN_INVOICES = OpenApiParameter(
+    "min_invoices",
+    OpenApiTypes.INT,
+    OpenApiParameter.QUERY,
+    required=False,
+    description=(
+        "Ignore product pairs that appear on fewer than this many invoices. Defaults to 1."
+    ),
+)
 
 
 def _membership(request) -> Membership:  # type: ignore[no-untyped-def]
@@ -68,6 +96,7 @@ def _scope(request) -> dict:
     }
 
 
+@extend_schema(parameters=PERIOD_PARAMETERS, responses=SalesSummarySerializer)
 class SalesSummaryView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -78,6 +107,10 @@ class SalesSummaryView(APIView):
         )
 
 
+@extend_schema(
+    parameters=[*PERIOD_PARAMETERS, GRANULARITY],
+    responses=SalesTrendSerializer,
+)
 class SalesTrendView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -91,6 +124,10 @@ class SalesTrendView(APIView):
         )
 
 
+@extend_schema(
+    parameters=[*PERIOD_PARAMETERS, SEARCH, limit_parameter(50, 500, "products")],
+    responses=ProductSummarySerializer,
+)
 class ProductPerformanceView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -105,6 +142,7 @@ class ProductPerformanceView(APIView):
         )
 
 
+@extend_schema(parameters=PERIOD_PARAMETERS, responses=ProductDetailSerializer)
 class ProductDetailView(APIView):
     def get(self, request, product_id: int):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -119,6 +157,10 @@ class ProductDetailView(APIView):
         )
 
 
+@extend_schema(
+    parameters=[*PERIOD_PARAMETERS, limit_parameter(100, 250, "countries")],
+    responses=GeographySummarySerializer,
+)
 class GeographyPerformanceView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -132,6 +174,10 @@ class GeographyPerformanceView(APIView):
         )
 
 
+@extend_schema(
+    parameters=[*SCOPE_PARAMETERS, limit_parameter(25, 200, "products or countries")],
+    responses=ReturnsAnalysisSerializer,
+)
 class ReturnsAnalysisView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -144,6 +190,14 @@ class ReturnsAnalysisView(APIView):
         )
 
 
+@extend_schema(
+    parameters=[
+        *SCOPE_PARAMETERS,
+        limit_parameter(25, 200, "pairs"),
+        MIN_INVOICES,
+    ],
+    responses=BasketAnalysisSerializer,
+)
 class BasketAnalysisView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)

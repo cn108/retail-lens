@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
@@ -33,6 +34,13 @@ def _active_membership(request) -> Membership:  # type: ignore[no-untyped-def]
     return membership
 
 
+@extend_schema_view(
+    get=extend_schema(responses=MembershipSummarySerializer(many=True)),
+    post=extend_schema(
+        request=OrganisationSettingsSerializer,
+        responses={201: OrganisationSerializer},
+    ),
+)
 class OrganisationListCreateView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         return Response(MembershipSummarySerializer(memberships_for(request.user), many=True).data)
@@ -55,6 +63,13 @@ class OrganisationListCreateView(APIView):
         )
 
 
+@extend_schema_view(
+    get=extend_schema(responses=OrganisationSerializer),
+    patch=extend_schema(
+        request=OrganisationSettingsSerializer,
+        responses=OrganisationSerializer,
+    ),
+)
 class CurrentOrganisationView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _active_membership(request)
@@ -76,6 +91,10 @@ class CurrentOrganisationView(APIView):
         )
 
 
+@extend_schema_view(
+    get=extend_schema(responses=MemberSerializer(many=True)),
+    post=extend_schema(request=AddMemberSerializer, responses={201: MemberSerializer}),
+)
 class MemberListCreateView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _active_membership(request)
@@ -95,6 +114,10 @@ class MemberListCreateView(APIView):
         return Response(MemberSerializer(member).data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema_view(
+    patch=extend_schema(request=RoleSerializer, responses=MemberSerializer),
+    delete=extend_schema(responses={204: None}),
+)
 class MemberDetailView(APIView):
     def patch(self, request, member_id):  # type: ignore[no-untyped-def]
         actor = _active_membership(request)
@@ -109,3 +132,15 @@ class MemberDetailView(APIView):
         member = get_object_or_404(Membership, id=member_id, organisation=actor.organisation)
         remove_member(membership=member, actor=actor)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(exclude=True)
+class OrganisationCollectionAliasView(OrganisationListCreateView):
+    """The bare collection path, kept only so a creation POST survives.
+
+    ``APPEND_SLASH`` cannot redirect a request body, so creating an
+    organisation has to work at ``/api/v1/organisations`` as well as at the
+    trailing-slash route. The alias is excluded from the schema so the
+    collection has one documented operation and the paths do not collide on
+    their operationId.
+    """

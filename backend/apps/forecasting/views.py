@@ -2,6 +2,7 @@ import uuid
 
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
@@ -9,9 +10,16 @@ from rest_framework.views import APIView
 
 from apps.organisations.models import Membership, Role
 from apps.organisations.services import active_membership_for, require_role
+from config.schema import DATASET, ORGANISATION_HEADER, limit_parameter
 
 from .models import ForecastAnomaly, ForecastRun
-from .serializers import ForecastRunCreateSerializer
+from .serializers import (
+    AnomalyTriageResultSerializer,
+    AnomalyTriageSerializer,
+    ForecastRunCreateSerializer,
+    ForecastRunDetailSerializer,
+    ForecastRunSerializer,
+)
 from .services import dataset_for, run_payload, runs_payload, start_forecast
 
 
@@ -33,6 +41,17 @@ def _dataset_param(request):  # type: ignore[no-untyped-def]
     return dataset_for(_membership(request).organisation, value)
 
 
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="v1_forecasting_runs_list",
+        parameters=[ORGANISATION_HEADER, DATASET, limit_parameter(20, 100, "runs")],
+        responses=ForecastRunSerializer(many=True),
+    ),
+    post=extend_schema(
+        request=ForecastRunCreateSerializer,
+        responses={202: ForecastRunSerializer},
+    ),
+)
 class ForecastRunListCreateView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -60,6 +79,7 @@ class ForecastRunListCreateView(APIView):
         return Response(run_payload(run), status=status.HTTP_202_ACCEPTED)
 
 
+@extend_schema(parameters=[ORGANISATION_HEADER], responses=ForecastRunDetailSerializer)
 class ForecastRunDetailView(APIView):
     def get(self, request, run_id):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -71,6 +91,10 @@ class ForecastRunDetailView(APIView):
         return Response(run_payload(run, detail=True))
 
 
+@extend_schema(
+    request=AnomalyTriageSerializer,
+    responses=AnomalyTriageResultSerializer,
+)
 class ForecastAnomalyTriageView(APIView):
     """Annotate or acknowledge one observed anomaly on a run."""
 

@@ -153,6 +153,18 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Retail business intelligence and analytics API.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Alert rules accept six metrics and targets accept three, so both fields
+    # would otherwise be published under a generated, unstable enum name.
+    "ENUM_NAME_OVERRIDES": {
+        "AlertMetricEnum": "apps.monitoring.models.AlertMetric",
+        "TargetMetricEnum": "apps.monitoring.models.TargetMetric",
+    },
+    # The default enum hook is kept; the second hook removes the empty path
+    # objects left behind by the schema-excluded bare collection routes.
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.hooks.postprocess_schema_enums",
+        "config.schema.remove_empty_paths",
+    ],
 }
 
 # CORS is only needed when the Angular dev server calls the API without its

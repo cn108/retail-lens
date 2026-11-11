@@ -1,18 +1,56 @@
 import uuid
 from datetime import date
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.organisations.models import Membership
 from apps.organisations.services import active_membership_for
+from config.schema import (
+    DATE_FROM,
+    DATE_TO,
+    OFFSET,
+    ORGANISATION_HEADER,
+    SCOPE_PARAMETERS,
+    SEARCH,
+    limit_parameter,
+)
 
 from .extended import customer_detail, segment_members, validate_rules
 from .models import CustomerSegment
+from .serializers import (
+    CustomerDetailSerializer,
+    CustomerRetentionSerializer,
+    CustomerRfmSerializer,
+    CustomerSummarySerializer,
+    SegmentListSerializer,
+    SegmentMembersSerializer,
+    SegmentSerializer,
+    SegmentUpdateSerializer,
+    SegmentWriteSerializer,
+)
 from .services import customer_retention, customer_rfm, customer_summary
 
 WRITE_ROLES = {"owner", "admin", "analyst"}
+
+SORT = OpenApiParameter(
+    "sort",
+    OpenApiTypes.STR,
+    OpenApiParameter.QUERY,
+    required=False,
+    enum=["net", "orders", "recency", "last", "customer"],
+    description="Order of the scored customers. Defaults to net.",
+)
+SEGMENT_FILTER = OpenApiParameter(
+    "segment",
+    OpenApiTypes.STR,
+    OpenApiParameter.QUERY,
+    required=False,
+    description="Restrict the result to one RFM segment key.",
+)
 
 
 def _membership(request) -> Membership:  # type: ignore[no-untyped-def]
@@ -74,12 +112,24 @@ def _serialize(segment: CustomerSegment) -> dict:
     }
 
 
+@extend_schema(parameters=SCOPE_PARAMETERS, responses=CustomerSummarySerializer)
 class CustomerSummaryView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
         return Response(customer_summary(organisation=membership.organisation, **_scope(request)))
 
 
+@extend_schema(
+    parameters=[
+        *SCOPE_PARAMETERS,
+        SEARCH,
+        SEGMENT_FILTER,
+        SORT,
+        limit_parameter(50, 500, "customers"),
+        OFFSET,
+    ],
+    responses=CustomerRfmSerializer,
+)
 class CustomerRfmView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -99,12 +149,17 @@ class CustomerRfmView(APIView):
         )
 
 
+@extend_schema(parameters=SCOPE_PARAMETERS, responses=CustomerRetentionSerializer)
 class CustomerRetentionView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
         return Response(customer_retention(organisation=membership.organisation, **_scope(request)))
 
 
+@extend_schema(
+    parameters=[ORGANISATION_HEADER, DATE_FROM, DATE_TO],
+    responses=CustomerDetailSerializer,
+)
 class CustomerDetailView(APIView):
     def get(self, request, customer_id: int):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -118,6 +173,14 @@ class CustomerDetailView(APIView):
         )
 
 
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="v1_customers_segments_list",
+        parameters=[ORGANISATION_HEADER],
+        responses=SegmentListSerializer,
+    ),
+    post=extend_schema(request=SegmentWriteSerializer, responses={201: SegmentSerializer}),
+)
 class SegmentListCreateView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -158,6 +221,11 @@ class SegmentListCreateView(APIView):
         return Response(_serialize(segment), status=201)
 
 
+@extend_schema_view(
+    get=extend_schema(responses=SegmentSerializer),
+    patch=extend_schema(request=SegmentUpdateSerializer, responses=SegmentSerializer),
+    delete=extend_schema(responses={204: None}),
+)
 class SegmentDetailView(APIView):
     def _segment(self, request, segment_id: uuid.UUID) -> CustomerSegment:  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -205,6 +273,15 @@ class SegmentDetailView(APIView):
         return Response(status=204)
 
 
+@extend_schema(
+    parameters=[
+        ORGANISATION_HEADER,
+        DATE_FROM,
+        DATE_TO,
+        limit_parameter(50, 500, "customers"),
+    ],
+    responses=SegmentMembersSerializer,
+)
 class SegmentMembersView(APIView):
     def get(self, request, segment_id: uuid.UUID):  # type: ignore[no-untyped-def]
         membership = _membership(request)

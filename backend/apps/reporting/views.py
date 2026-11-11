@@ -1,6 +1,8 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils.http import content_disposition_header
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
@@ -8,11 +10,15 @@ from rest_framework.views import APIView
 
 from apps.organisations.models import Membership, Role
 from apps.organisations.services import active_membership_for, require_role
+from config.schema import ORGANISATION_HEADER, limit_parameter
 
 from .models import ExportFormat, ExportStatus, ReportJob, SavedReport
 from .serializers import (
     ReportExportCreateSerializer,
+    ReportExportSerializer,
     SavedReportCreateSerializer,
+    SavedReportSerializer,
+    SavedReportSummarySerializer,
     SavedReportUpdateSerializer,
 )
 from .services import (
@@ -26,6 +32,14 @@ from .services import (
     report_payload,
     start_export,
     update_report,
+)
+
+ACTIVE_PARAMETER = OpenApiParameter(
+    "active",
+    OpenApiTypes.STR,
+    OpenApiParameter.QUERY,
+    required=False,
+    description="Set to 1, true or yes to return only queued and running exports.",
 )
 
 
@@ -45,6 +59,16 @@ def _report(request, report_id) -> SavedReport:  # type: ignore[no-untyped-def]
     )
 
 
+@extend_schema_view(
+    get=extend_schema(
+        parameters=[ORGANISATION_HEADER],
+        responses=SavedReportSummarySerializer(many=True),
+    ),
+    post=extend_schema(
+        request=SavedReportCreateSerializer,
+        responses={201: SavedReportSerializer},
+    ),
+)
 class SavedReportListCreateView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -73,6 +97,14 @@ class SavedReportListCreateView(APIView):
         return Response(report_payload(report), status=status.HTTP_201_CREATED)
 
 
+@extend_schema_view(
+    get=extend_schema(responses=SavedReportSerializer),
+    patch=extend_schema(
+        request=SavedReportUpdateSerializer,
+        responses=SavedReportSerializer,
+    ),
+    delete=extend_schema(responses={204: None}),
+)
 class SavedReportDetailView(APIView):
     def get(self, request, report_id):  # type: ignore[no-untyped-def]
         return Response(report_payload(_report(request, report_id)))
@@ -94,6 +126,17 @@ class SavedReportDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="v1_report_exports_list",
+        parameters=[limit_parameter(20, 100, "exports")],
+        responses=ReportExportSerializer(many=True),
+    ),
+    post=extend_schema(
+        request=ReportExportCreateSerializer,
+        responses={202: ReportExportSerializer},
+    ),
+)
 class ReportExportListCreateView(APIView):
     def get(self, request, report_id):  # type: ignore[no-untyped-def]
         report = _report(request, report_id)
@@ -119,6 +162,13 @@ class ReportExportListCreateView(APIView):
         return Response(job_payload(job), status=status.HTTP_202_ACCEPTED)
 
 
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="v1_report_exports_all_list",
+        parameters=[limit_parameter(20, 100, "exports"), ACTIVE_PARAMETER],
+        responses=ReportExportSerializer(many=True),
+    )
+)
 class ReportExportListView(APIView):
     """All recent report exports for the active organisation."""
 
@@ -136,6 +186,7 @@ class ReportExportListView(APIView):
         return Response([job_payload(job) for job in jobs[:limit]])
 
 
+@extend_schema(responses=ReportExportSerializer)
 class ReportExportDetailView(APIView):
     def get(self, request, report_id, job_id):  # type: ignore[no-untyped-def]
         report = _report(request, report_id)
@@ -145,6 +196,12 @@ class ReportExportDetailView(APIView):
         return Response(job_payload(job))
 
 
+@extend_schema(
+    responses={
+        (200, "text/csv"): OpenApiTypes.BINARY,
+        (200, "application/pdf"): OpenApiTypes.BINARY,
+    }
+)
 class ReportExportDownloadView(APIView):
     def get(self, request, report_id, job_id):  # type: ignore[no-untyped-def]
         report = _report(request, report_id)
@@ -167,3 +224,14 @@ class ReportExportDownloadView(APIView):
         )
         response["Content-Length"] = str(len(content))
         return response
+
+
+@extend_schema(exclude=True)
+class ReportCollectionAliasView(SavedReportListCreateView):
+    """The bare collection path, kept only so a creation POST survives.
+
+    ``APPEND_SLASH`` cannot redirect a request body, so creating a report has to
+    work at ``/api/v1/reports`` as well as at the trailing-slash route. The alias
+    is excluded from the schema so the collection has one documented operation
+    and the paths do not collide on their operationId.
+    """

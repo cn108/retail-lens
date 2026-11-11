@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from rest_framework import serializers
 
 from apps.ingestion.canonical import (
@@ -76,7 +78,7 @@ class DatasetSummarySerializer(serializers.ModelSerializer):
     def get_created_by(self, obj: Dataset) -> str | None:
         return obj.created_by.email if obj.created_by else None
 
-    def get_last_processed_at(self, obj: Dataset):
+    def get_last_processed_at(self, obj: Dataset) -> datetime | None:
         run = self._latest_run(obj)
         return run.finished_at if run else None
 
@@ -127,7 +129,7 @@ class DatasetDetailSerializer(DatasetSummarySerializer):
     def get_warnings(self, obj: Dataset) -> list[str]:
         return list(obj.current_import.warnings) if obj.current_import else []
 
-    def get_imported_at(self, obj: Dataset):
+    def get_imported_at(self, obj: Dataset) -> datetime | None:
         return obj.current_import.created_at if obj.current_import else None
 
     def get_mapping_complete(self, obj: Dataset) -> bool:
@@ -172,3 +174,66 @@ def canonical_field_payload() -> dict:
         "fields": CanonicalFieldSerializer(CANONICAL_FIELDS, many=True).data,
         "required": list(REQUIRED_KEYS),
     }
+
+
+class CanonicalFieldListSerializer(serializers.Serializer):
+    """The canonical warehouse fields and the ones a dataset must map."""
+
+    fields = CanonicalFieldSerializer(many=True)
+    required = serializers.ListField(child=serializers.CharField())
+
+
+class ProcessingRunSerializer(serializers.Serializer):
+    """One processing attempt and its row counts."""
+
+    id = serializers.CharField()
+    status = serializers.CharField()
+    started_at = serializers.DateTimeField(allow_null=True)
+    finished_at = serializers.DateTimeField(allow_null=True)
+    rows_read = serializers.IntegerField(allow_null=True)
+    rows_loaded = serializers.IntegerField(allow_null=True)
+    rows_rejected = serializers.IntegerField(allow_null=True)
+    summary = serializers.DictField()
+    error_message = serializers.CharField(allow_null=True)
+    created_at = serializers.DateTimeField()
+
+
+class QualityIssueSerializer(serializers.Serializer):
+    """One rejected row and the reason it was rejected."""
+
+    id = serializers.CharField()
+    row_number = serializers.IntegerField(allow_null=True)
+    code = serializers.CharField()
+    message = serializers.CharField()
+    source_column = serializers.CharField(allow_null=True)
+    raw_value = serializers.CharField(allow_null=True)
+
+
+class QualityReasonSerializer(serializers.Serializer):
+    """How often one rejection code occurred."""
+
+    code = serializers.CharField()
+    count = serializers.IntegerField()
+
+
+class QualityDatasetSerializer(serializers.Serializer):
+    """Rejected rows and their reasons for one dataset."""
+
+    dataset_id = serializers.CharField()
+    name = serializers.CharField()
+    status = serializers.CharField()
+    rows_read = serializers.IntegerField()
+    rows_rejected = serializers.IntegerField()
+    issues = serializers.IntegerField()
+    reasons = QualityReasonSerializer(many=True)
+    last_run_at = serializers.DateTimeField(allow_null=True)
+
+
+class QualitySummarySerializer(serializers.Serializer):
+    """Organisation-wide rejected rows, worst dataset first."""
+
+    dataset_count = serializers.IntegerField()
+    rows_rejected = serializers.IntegerField()
+    open_issues = serializers.IntegerField()
+    reasons = QualityReasonSerializer(many=True)
+    datasets = QualityDatasetSerializer(many=True)

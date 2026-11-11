@@ -2,6 +2,7 @@ import uuid
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,6 +11,7 @@ from apps.datasets.models import Dataset
 from apps.organisations.models import Membership
 from apps.organisations.services import active_membership_for
 from apps.reporting.models import SavedReport
+from config.schema import ORGANISATION_HEADER
 
 from .models import (
     AlertComparator,
@@ -21,6 +23,25 @@ from .models import (
     ScheduleFrequency,
     Target,
     TargetMetric,
+)
+from .serializers import (
+    AlertEvaluateSerializer,
+    AlertEventAcknowledgedSerializer,
+    AlertListSerializer,
+    AlertRuleSerializer,
+    AlertUpdateSerializer,
+    AlertWriteSerializer,
+    BoardListSerializer,
+    BoardSerializer,
+    BoardUpdateSerializer,
+    BoardWriteSerializer,
+    ScheduleListSerializer,
+    ScheduleSerializer,
+    ScheduleUpdateSerializer,
+    ScheduleWriteSerializer,
+    TargetListSerializer,
+    TargetProgressSerializer,
+    TargetWriteSerializer,
 )
 from .services import (
     alert_payload,
@@ -74,6 +95,10 @@ def _dataset(raw, organisation):  # type: ignore[no-untyped-def]
     return dataset
 
 
+@extend_schema_view(
+    get=extend_schema(parameters=[ORGANISATION_HEADER], responses=AlertListSerializer),
+    post=extend_schema(request=AlertWriteSerializer, responses={201: AlertRuleSerializer}),
+)
 class AlertListView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -119,6 +144,10 @@ class AlertListView(APIView):
         return Response(alert_payload(rule), status=201)
 
 
+@extend_schema_view(
+    patch=extend_schema(request=AlertUpdateSerializer, responses=AlertRuleSerializer),
+    delete=extend_schema(responses={204: None}),
+)
 class AlertDetailView(APIView):
     def _rule(self, request, rule_id: uuid.UUID) -> AlertRule:  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -160,6 +189,7 @@ class AlertDetailView(APIView):
         return Response(status=204)
 
 
+@extend_schema(request=None, responses=AlertEvaluateSerializer)
 class AlertEvaluateView(APIView):
     def post(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -181,6 +211,7 @@ class AlertEvaluateView(APIView):
         )
 
 
+@extend_schema(request=None, responses=AlertEventAcknowledgedSerializer)
 class AlertEventAcknowledgeView(APIView):
     def post(self, request, event_id: uuid.UUID):  # type: ignore[no-untyped-def]
         from django.utils import timezone
@@ -197,6 +228,10 @@ class AlertEventAcknowledgeView(APIView):
         return Response({"id": str(event.id), "acknowledged_at": event.acknowledged_at.isoformat()})
 
 
+@extend_schema_view(
+    get=extend_schema(parameters=[ORGANISATION_HEADER], responses=TargetListSerializer),
+    post=extend_schema(request=TargetWriteSerializer, responses={201: TargetProgressSerializer}),
+)
 class TargetListView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -231,6 +266,7 @@ class TargetListView(APIView):
         return Response(target_progress(target), status=201)
 
 
+@extend_schema(responses={204: None})
 class TargetDetailView(APIView):
     def _target(self, request, target_id: uuid.UUID) -> Target:  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -246,6 +282,10 @@ class TargetDetailView(APIView):
         return Response(status=204)
 
 
+@extend_schema_view(
+    get=extend_schema(parameters=[ORGANISATION_HEADER], responses=ScheduleListSerializer),
+    post=extend_schema(request=ScheduleWriteSerializer, responses={201: ScheduleSerializer}),
+)
 class ScheduleListView(APIView):
     def get(self, request):  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -286,6 +326,10 @@ class ScheduleListView(APIView):
         return Response(schedule_payload(schedule), status=201)
 
 
+@extend_schema_view(
+    patch=extend_schema(request=ScheduleUpdateSerializer, responses=ScheduleSerializer),
+    delete=extend_schema(responses={204: None}),
+)
 class ScheduleDetailView(APIView):
     def _schedule(self, request, schedule_id: uuid.UUID) -> ReportSchedule:  # type: ignore[no-untyped-def]
         membership = _membership(request)
@@ -329,6 +373,10 @@ class ScheduleDetailView(APIView):
         return Response(status=204)
 
 
+@extend_schema_view(
+    get=extend_schema(parameters=[ORGANISATION_HEADER], responses=BoardListSerializer),
+    post=extend_schema(request=BoardWriteSerializer, responses={201: BoardSerializer}),
+)
 class BoardListView(APIView):
     ALLOWED_WIDGETS = {
         "kpi",
@@ -372,6 +420,10 @@ class BoardListView(APIView):
         return Response(board_payload(board), status=201)
 
 
+@extend_schema_view(
+    patch=extend_schema(request=BoardUpdateSerializer, responses=BoardSerializer),
+    delete=extend_schema(responses={204: None}),
+)
 class BoardDetailView(APIView):
     def _board(self, request, board_id: uuid.UUID) -> Board:  # type: ignore[no-untyped-def]
         membership = _membership(request)

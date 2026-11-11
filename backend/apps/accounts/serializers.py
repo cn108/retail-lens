@@ -32,6 +32,12 @@ class MeSerializer(serializers.ModelSerializer):
         return MembershipSummarySerializer(memberships_for(obj), many=True).data
 
 
+class CsrfTokenSerializer(serializers.Serializer):
+    """The token the browser must echo in the X-CSRFToken header."""
+
+    csrfToken = serializers.CharField()
+
+
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
