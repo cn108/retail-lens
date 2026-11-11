@@ -26,6 +26,111 @@ product reports with their metric definitions for CSV or PDF export. See
 | Reporting | Saved report definitions, Celery export jobs, ReportLab PDF rendering and UTF-8 CSV (M9) |
 | Infrastructure | Docker Compose, GitHub Actions |
 
+## Screenshots
+
+Every image below is the running application captured against the seeded
+two-year demo dataset (`seed_synthetic_sales`), signed in as an owner of one
+organisation. Nothing is a mockup or a design file.
+
+**Dashboard** — the landing view: the resolved reporting period, the shared
+dataset/period/comparison filters, headline KPIs, net sales by day, week or
+month, which datasets contributed, and how fresh the warehouse is.
+
+![Dashboard with KPI cards, net sales trend and data confidence](docs/screenshots/01-dashboard.png)
+
+**Sales** — six sales measures for the selected scope, then the same series as
+a table with relative bars, so a spike or a lost month is visible at a glance.
+
+![Sales page with KPI cards and a monthly sales table](docs/screenshots/02-sales.png)
+
+**Products** — revenue concentration: net sales, product count, top-product
+share and how many products are declining, above a ranked, searchable and
+sortable table of every product in the scope.
+
+![Products page with ranked product performance table](docs/screenshots/03-products.png)
+
+**Customers** — repeat-purchase and retention measures, RFM segment totals, a
+monthly cohort retention grid, and a scored customer table with segment filters
+and saved segments.
+
+![Customers page with RFM segments and a cohort retention grid](docs/screenshots/04-customers.png)
+
+**Geography** — revenue, orders, customers and return rate per country. Lines
+without a country are kept as "Unassigned" so the rows always reconcile with
+Sales.
+
+![Geography page with country performance table](docs/screenshots/05-geography.png)
+
+**Returns & discounts** — return and discount rates, the gross-to-net bridge,
+the products that give the most back, and returns by country.
+
+![Returns page with the gross to net bridge and product return table](docs/screenshots/06-returns.png)
+
+**Market basket** — which products share an invoice, ranked by lift, with
+support and both confidence directions next to each pair.
+
+![Market basket page with co-purchased product pairs](docs/screenshots/07-basket.png)
+
+**Datasets** — upload a transaction CSV (the file is preserved as supplied) and
+see every dataset with its status, row and column counts and quality summary.
+
+![Datasets page with the upload form and dataset list](docs/screenshots/08-datasets.png)
+
+**Dataset detail** — the detected columns with sample values, the mapping of
+each source column to a canonical field, the row counts of the latest run, and
+Reprocess and Remove actions.
+
+![Dataset detail page showing column mapping and processing counts](docs/screenshots/09-dataset-detail.png)
+
+**Data quality** — every rejected row and the reason it failed, across all
+datasets in the organisation, worst dataset first, exportable as CSV.
+
+![Data quality page with rejection counts per dataset](docs/screenshots/10-quality.png)
+
+**Forecasting** — a completed run: the train/validate/test split, model error
+against the seasonal-naive baseline, the forecast with its 95% interval, the
+monthly numbers, and the two seeded anomalies with their triage controls.
+
+![Forecasting page with forecast chart, metrics and anomaly triage](docs/screenshots/11-forecasting.png)
+
+**Monitoring** — threshold alerts that record one event per breach, period
+targets with pace, and scheduled report delivery.
+
+![Monitoring page with alert rules and a breached rule](docs/screenshots/12-monitoring.png)
+
+**Boards** — saved layouts of widgets: pick the widgets once, and every number
+is refetched with the current filters whenever the board is opened.
+
+![Boards page with a saved board and its four widgets](docs/screenshots/13-boards.png)
+
+**Reports** — save a report definition, read it computed from the live
+warehouse with its metric definitions attached, and generate CSV or PDF exports.
+
+![Reports page with a computed report, exports and metric definitions](docs/screenshots/14-reports.png)
+
+## Pages and what they do
+
+| Page | Route | What it is for | What you can do there |
+| --- | --- | --- | --- |
+| Sign in | `/login` | Entry point for the workspace | Sign in, or register a new account and workspace in one step |
+| Dashboard | `/dashboard` | Orientation: is the data fresh, and how is the business doing | Set dataset, period and comparison and carry them across the analysis pages; read the KPIs; switch the trend between day, week and month; save a report; export CSV; jump to Sales or to the dataset list |
+| Datasets | `/datasets` | Get transaction data in | Upload a CSV (50 MiB limit, delimiter detected), download the sample file, open any dataset |
+| Dataset detail | `/datasets/:id` | Make raw columns mean something | Review detected types and sample values, map each column to a canonical field, save the mapping, process or reprocess into the warehouse, delete the dataset |
+| Sales | `/sales` | Sales performance for the chosen scope | Six KPIs with their definitions, the period table with relative bars, save as report, export CSV |
+| Customers | `/customers` | Who buys, how often, and whether they come back | Repeat rate, average orders, observed value, month-1 retention, RFM segment totals, cohort grid, search/sort/page the scored customer list, save and apply segments |
+| Customer detail | `/customers/:id` | One customer's behaviour | Value and score, share of sales, recent invoices, top products, the RFM segment they fall in |
+| Products | `/products` | Where revenue comes from | Net sales, product count, top-product share, declining count, ranked table with share bars, search, sort by any column, paging, copy or export the rows |
+| Product detail | `/products/:id` | One product's trajectory | Monthly trend, buyers, countries, return rate, share of net sales, change against the baseline |
+| Geography | `/geography` | Market structure | Country rows with share, orders, customers, return rate and change against the baseline |
+| Returns | `/returns` | Margin leakage | Return and discount rates, gross-to-net bridge, worst products by return value, returns by country |
+| Market basket | `/basket` | Cross-sell candidates | Invoice and pair counts, strongest lift, pairs with support and both confidence directions, minimum-invoice filter |
+| Data quality | `/quality` | Trust the numbers | Rejected rows and reasons per dataset, worst first, export the findings as CSV |
+| Monitoring | `/monitoring` | Catch problems without watching dashboards | Add, enable/disable and delete threshold alerts, check now, acknowledge events, set period targets with pace, schedule report delivery to recipients |
+| Boards | `/boards` | A page of the numbers you actually check | Create a board from eight widget types, open, refresh and delete boards; the layout is saved, the numbers are always live |
+| Forecasting | `/forecasting` | Plan the next months | Run a forecast for a dataset and horizon, compare model error with the baseline, read the interval, triage detected anomalies with a note and acknowledgement |
+| Reports | `/reports/:id` | Ask the same question again next month | Save a report definition, read it recomputed, share the scope, duplicate, edit filters, generate CSV or PDF, download past exports, read each measure's definition |
+| Settings | `/settings` | Workspace administration | Edit your profile and password, create or switch organisations, change name, currency, time zone and retention, manage members and roles, check service health |
+
 ## Quick start
 
 ```sh
@@ -440,6 +545,7 @@ retail-lens/
 ├── analytics/        Notebooks, pipelines, transformations, metrics, models, Power BI
 ├── infrastructure/   Reserved for deployment assets beyond Docker Compose (M10)
 ├── docs/             PRD, system design, database design, methodology
+│   └── screenshots/  Captured application screens used in this README
 ├── docker-compose.yml
 └── .github/workflows/ci.yml
 ```
