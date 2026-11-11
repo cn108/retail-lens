@@ -56,6 +56,24 @@ signs you in. To reach the Django admin as well:
 docker compose run --rm backend python manage.py createsuperuser
 ```
 
+### Demo data
+
+The downloadable sample CSV is six rows: enough to try upload, mapping and
+processing, but too short to forecast, because a run needs twelve monthly
+periods. To fill a workspace with history every page can analyse:
+
+```sh
+docker compose exec backend python manage.py seed_synthetic_sales --organisation "Acme Retail"
+```
+
+The command writes a CSV, maps and processes it exactly as an upload would, and
+leaves a 24-month dataset with yearly seasonality, a slow upward trend, a
+promotion month and a month lost to a stock-out, so the forecast has anomalies
+to report. `--months`, `--orders-per-day`, `--seed`, `--name` and `--replace`
+(rebuild a dataset of the same name) change what is generated; the same seed
+always produces the same file. The organisation is optional when the database
+holds only one.
+
 ## Authentication, roles and tenancy
 
 The browser authenticates with a Django session cookie; the Angular dev
