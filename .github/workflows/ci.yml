@@ -60,6 +60,16 @@ jobs:
         run: ruff check . && ruff format --check .
       - name: Django system checks
         run: python manage.py check
+      - name: Deploy checks (production settings)
+        # Only the security tag is requested: a plain --deploy run also collects
+        # drf-spectacular's 111 schema warnings for plain APIViews, which are
+        # documentation debt rather than deployment risks. Production settings
+        # are loaded here because the development ones run without HTTPS by
+        # design and would fail every cookie and redirect check.
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.prod
+          DJANGO_SECRET_KEY: ci-only-0123456789abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJ
+        run: python manage.py check --deploy --tag security --fail-level WARNING
       - name: Migrations are committed
         run: python manage.py makemigrations --check --dry-run
       - name: Tests

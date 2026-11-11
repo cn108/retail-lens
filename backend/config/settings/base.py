@@ -7,6 +7,8 @@ committed. See .env.example at the repository root for the full list.
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
@@ -23,7 +25,27 @@ def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in str(env(name, default)).split(",") if item.strip()]
 
 
-SECRET_KEY = env("DJANGO_SECRET_KEY", "insecure-development-key-change-me")
+# The fallback that development runs on. Production settings refuse to boot with
+# it, so a deploy that forgets DJANGO_SECRET_KEY fails loudly instead of signing
+# sessions with a key that is published in this repository.
+INSECURE_SECRET_KEY = "insecure-development-key-change-me"
+
+SECRET_KEY = env("DJANGO_SECRET_KEY", INSECURE_SECRET_KEY)
+
+
+def require_distinct_secret_key(secret_key: str) -> None:
+    """Refuse the development key, so a misconfigured deploy fails at boot.
+
+    Development settings keep the published fallback so a fresh clone runs with
+    no configuration; production calls this and refuses to start.
+    """
+    if secret_key == INSECURE_SECRET_KEY:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY is unset, so production settings would sign sessions "
+            "with the development default; set it to a unique value."
+        )
+
+
 DEBUG = env_bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 

@@ -1,6 +1,9 @@
 """Production settings: secure defaults, HTTPS assumed behind a proxy."""
 
 from .base import *  # noqa: F403
+from .base import SECRET_KEY, require_distinct_secret_key
+
+require_distinct_secret_key(SECRET_KEY)
 
 DEBUG = False
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

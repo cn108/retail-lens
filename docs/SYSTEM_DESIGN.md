@@ -54,7 +54,7 @@ development only.
 | Variable | Purpose | Local default |
 | --- | --- | --- |
 | `DJANGO_SETTINGS_MODULE` | Settings module | `config.settings.dev` |
-| `DJANGO_SECRET_KEY` | Signing key; mandatory in production | insecure placeholder |
+| `DJANGO_SECRET_KEY` | Signing key; production refuses to start without its own value | insecure placeholder |
 | `DJANGO_DEBUG` | Debug mode | `true` |
 | `DJANGO_ALLOWED_HOSTS` | Allowed hosts | localhost, 127.0.0.1, backend |
 | `LOG_LEVEL` | Root logger level | `INFO` |
